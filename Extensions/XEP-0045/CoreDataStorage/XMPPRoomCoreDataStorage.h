@@ -122,4 +122,16 @@
                                                    stream:(XMPPStream *)xmppStream
                                                 inContext:(NSManagedObjectContext *)moc;
 
+- (XMPPRoomMessageCoreDataStorageObject *)mostRecentMessageForRoom:(XMPPJID *)roomJID
+                                                            stream:(XMPPStream *)xmppStream
+                                                         inContext:(NSManagedObjectContext *)inMoc;
+
+- (int) nonReadMessageCountForrRoom:(XMPPJID *)roomJID
+                             stream:(XMPPStream *)xmppStream
+                          inContext:(NSManagedObjectContext *)inMoc;
+
+- (NSArray *)messagesForRoom:(XMPPJID *)roomJID
+                      stream:(XMPPStream *)xmppStream
+                   inContext:(NSManagedObjectContext *)inMoc;
+
 @end

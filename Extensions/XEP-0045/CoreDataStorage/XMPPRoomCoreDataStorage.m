@@ -3,6 +3,7 @@
 #import "XMPPElement+Delay.h"
 #import "XMPPLogging.h"
 
+
 #if ! __has_feature(objc_arc)
 #warning This file must be compiled with ARC. Use -fobjc-arc flag (or convert project to ARC).
 #endif
@@ -515,14 +516,7 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 {
 	NSDate *remoteTimestamp = [message delayedDeliveryDate];
 	
-	if (remoteTimestamp == nil)
-	{
-		// When the xmpp server sends us a room message, it will always timestamp delayed messages.
-		// For example, when retrieving the discussion history, all messages will include the original timestamp.
-		// If a message doesn't include such timestamp, then we know we're getting it in "real time".
-		
-		return NO;
-	}
+	
 	
 	// Does this message already exist in the database?
 	// How can we tell if two XMPPRoomMessages are the same?
@@ -555,18 +549,21 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 	
 	NSDate *minLocalTimestamp = [remoteTimestamp dateByAddingTimeInterval:-60];
 	NSDate *maxLocalTimestamp = [remoteTimestamp dateByAddingTimeInterval: 60];
-	
+
+    
 	NSString *predicateFormat = @"    body == %@ "
 	                            @"AND jidStr == %@ "
 	                            @"AND streamBareJidStr == %@ "
+                                @"AND messageId == %@ "
 	                            @"AND "
 	                            @"("
 	                            @"     (remoteTimestamp == %@) "
 	                            @"  OR (remoteTimestamp == NIL && localTimestamp BETWEEN {%@, %@})"
 	                            @")";
 	
+    
 	NSPredicate *predicate = [NSPredicate predicateWithFormat:predicateFormat,
-	                             messageBody, messageJID, streamBareJidStr,
+	                             messageBody, messageJID, streamBareJidStr,[message attributeStringValueForName:@"id"],
 	                             remoteTimestamp, minLocalTimestamp, maxLocalTimestamp];
 	
 	NSFetchRequest *fetchRequest = [[NSFetchRequest alloc] init];
@@ -581,8 +578,26 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 	{
 		XMPPLogError(@"%@: %@ - Fetch error: %@", THIS_FILE, THIS_METHOD, error);
 	}
+    
+    if([results count] > 0) {
+        return ([results count] > 0);
+
+    }
 	
-	return ([results count] > 0);
+    
+    
+    if (remoteTimestamp == nil)
+	{
+		// When the xmpp server sends us a room message, it will always timestamp delayed messages.
+		// For example, when retrieving the discussion history, all messages will include the original timestamp.
+		// If a message doesn't include such timestamp, then we know we're getting it in "real time".
+		
+		return NO;
+	} else {
+        return ([results count] > 0);
+    }
+    
+    
 }
 
 /**
@@ -655,7 +670,8 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 	roomMessage.remoteTimestamp = remoteTimestamp;
 	roomMessage.isFromMe = isOutgoing;
 	roomMessage.streamBareJidStr = streamBareJidStr;
-	
+    roomMessage.messageId = [message attributeStringValueForName:@"id"];
+
 	[moc insertObject:roomMessage];      // Hook if subclassing XMPPRoomMessageCoreDataStorageObject (awakeFromInsert)
 	[self didInsertMessage:roomMessage]; // Hook if subclassing XMPPRoomCoreDataStorage
 }
@@ -877,6 +893,183 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 	
 	return result;
 }
+
+- (NSArray *)messagesForRoom:(XMPPJID *)roomJID
+                                       stream:(XMPPStream *)xmppStream
+                                    inContext:(NSManagedObjectContext *)inMoc
+{
+	if (roomJID == nil) return nil;
+	
+	// It's possible to use our internal managedObjectContext only because we're not returning a NSManagedObject.
+	
+	__block NSArray *result = nil;
+	
+	dispatch_block_t block = ^{ @autoreleasepool {
+		
+		NSManagedObjectContext *moc = inMoc ? inMoc : [self managedObjectContext];
+		
+		NSEntityDescription *entity = [self messageEntity:moc];
+		
+		NSPredicate *predicate;
+		if (xmppStream)
+		{
+			NSString *streamBareJidStr = [[self myJIDForXMPPStream:xmppStream] bare];
+			
+			NSString *predicateFormat = @"roomJIDStr == %@ AND streamBareJidStr == %@";
+			predicate = [NSPredicate predicateWithFormat:predicateFormat, roomJID, streamBareJidStr];
+		}
+		else
+		{
+			predicate = [NSPredicate predicateWithFormat:@"roomJIDStr == %@", roomJID];
+		}
+		
+		NSSortDescriptor *sortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"localTimestamp" ascending:NO];
+		NSArray *sortDescriptors = [NSArray arrayWithObject:sortDescriptor];
+		
+		NSFetchRequest *fetchRequest = [[NSFetchRequest alloc] init];
+		[fetchRequest setEntity:entity];
+		[fetchRequest setPredicate:predicate];
+		[fetchRequest setSortDescriptors:sortDescriptors];
+		
+		NSError *error = nil;
+		NSArray *results = [moc executeFetchRequest:fetchRequest error:&error];
+        
+		if (error)
+		{
+			XMPPLogError(@"%@: %@ - fetchRequest error: %@", THIS_FILE, THIS_METHOD, error);
+		}
+		else
+		{
+			result = results;
+		}
+	}};
+	
+	if (inMoc == nil)
+		dispatch_sync(storageQueue, block);
+	else
+		block();
+	
+	return result;
+}
+
+
+- (XMPPRoomMessageCoreDataStorageObject *)mostRecentMessageForRoom:(XMPPJID *)roomJID
+                                       stream:(XMPPStream *)xmppStream
+                                    inContext:(NSManagedObjectContext *)inMoc
+{
+	if (roomJID == nil) return nil;
+	
+	// It's possible to use our internal managedObjectContext only because we're not returning a NSManagedObject.
+	
+	__block XMPPRoomMessageCoreDataStorageObject *result = nil;
+	
+	dispatch_block_t block = ^{ @autoreleasepool {
+		
+		NSManagedObjectContext *moc = inMoc ? inMoc : [self managedObjectContext];
+		
+		NSEntityDescription *entity = [self messageEntity:moc];
+		
+		NSPredicate *predicate;
+		if (xmppStream)
+		{
+			NSString *streamBareJidStr = [[self myJIDForXMPPStream:xmppStream] bare];
+			
+			NSString *predicateFormat = @"roomJIDStr == %@ AND streamBareJidStr == %@";
+			predicate = [NSPredicate predicateWithFormat:predicateFormat, roomJID, streamBareJidStr];
+		}
+		else
+		{
+			predicate = [NSPredicate predicateWithFormat:@"roomJIDStr == %@", roomJID];
+		}
+		
+		NSSortDescriptor *sortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"localTimestamp" ascending:NO];
+		NSArray *sortDescriptors = [NSArray arrayWithObject:sortDescriptor];
+		
+		NSFetchRequest *fetchRequest = [[NSFetchRequest alloc] init];
+		[fetchRequest setEntity:entity];
+		[fetchRequest setPredicate:predicate];
+		[fetchRequest setSortDescriptors:sortDescriptors];
+		[fetchRequest setFetchLimit:1];
+		
+		NSError *error = nil;
+		XMPPRoomMessageCoreDataStorageObject *message = [[moc executeFetchRequest:fetchRequest error:&error] lastObject];
+        
+		if (error)
+		{
+			XMPPLogError(@"%@: %@ - fetchRequest error: %@", THIS_FILE, THIS_METHOD, error);
+		}
+		else
+		{
+			result = message;
+		}
+	}};
+	
+	if (inMoc == nil)
+		dispatch_sync(storageQueue, block);
+	else
+		block();
+	
+	return result;
+}
+
+- (int) nonReadMessageCountForrRoom:(XMPPJID *)roomJID
+                                                            stream:(XMPPStream *)xmppStream
+                                                         inContext:(NSManagedObjectContext *)inMoc
+{
+	if (roomJID == nil) return 0;
+	
+	// It's possible to use our internal managedObjectContext only because we're not returning a NSManagedObject.
+	
+	__block int result = nil;
+	
+	dispatch_block_t block = ^{ @autoreleasepool {
+		
+		NSManagedObjectContext *moc = inMoc ? inMoc : [self managedObjectContext];
+		
+		NSEntityDescription *entity = [self messageEntity:moc];
+		
+		NSPredicate *predicate;
+		if (xmppStream)
+		{
+			NSString *streamBareJidStr = [[self myJIDForXMPPStream:xmppStream] bare];
+			
+			NSString *predicateFormat = @"roomJIDStr == %@ AND streamBareJidStr == %@ AND read == 0";
+			predicate = [NSPredicate predicateWithFormat:predicateFormat, roomJID, streamBareJidStr];
+		}
+		else
+		{
+			predicate = [NSPredicate predicateWithFormat:@"roomJIDStr == %@ AND read == 0", roomJID];
+		}
+		
+		NSSortDescriptor *sortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"localTimestamp" ascending:NO];
+		NSArray *sortDescriptors = [NSArray arrayWithObject:sortDescriptor];
+		
+		NSFetchRequest *fetchRequest = [[NSFetchRequest alloc] init];
+		[fetchRequest setEntity:entity];
+		[fetchRequest setPredicate:predicate];
+		[fetchRequest setSortDescriptors:sortDescriptors];
+		
+		NSError *error = nil;
+		 int count = [[moc executeFetchRequest:fetchRequest error:&error] count];
+        
+		if (error)
+		{
+			XMPPLogError(@"%@: %@ - fetchRequest error: %@", THIS_FILE, THIS_METHOD, error);
+		}
+		else
+		{
+			result = count;
+		}
+	}};
+	
+	if (inMoc == nil)
+		dispatch_sync(storageQueue, block);
+	else
+		block();
+	
+	return result;
+}
+
 
 - (XMPPRoomOccupantCoreDataStorageObject *)occupantForJID:(XMPPJID *)jid
                                                    stream:(XMPPStream *)xmppStream

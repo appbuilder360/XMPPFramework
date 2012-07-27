@@ -147,4 +147,14 @@
 	self.fromMe = [NSNumber numberWithBool:value];
 }
 
+- (BOOL)isRead
+{
+	return [[self read] boolValue];
+}
+
+- (void)setIsRead:(BOOL)value
+{
+	self.read = [NSNumber numberWithBool:value];
+}
+
 @end

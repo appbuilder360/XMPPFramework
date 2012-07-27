@@ -29,6 +29,12 @@
 - (NSString *)nickname;
 
 /**
+ * The nickname of the user who sent the message.
+ * This is a convenience method for [jid resource].
+ **/
+- (NSString *)messageId;
+
+/**
  * Convenience method to access the body of the message.
 **/
 - (NSString *)body;
@@ -54,5 +60,10 @@
  * Whether or not the message was sent by us.
 **/
 - (BOOL)isFromMe;
+
+/**
+ * Whether or not the message was sent by us.
+ **/
+- (BOOL)isRead;
 
 @end

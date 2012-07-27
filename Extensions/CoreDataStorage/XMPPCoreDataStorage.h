@@ -124,4 +124,6 @@
 @property (strong, readonly) NSManagedObjectContext *mainThreadManagedObjectContext;
 
 -(void)removeAll;
+-(dispatch_queue_t)getStorageQueue;
+-(void)save;
 @end

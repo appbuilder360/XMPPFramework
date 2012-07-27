@@ -865,4 +865,8 @@ static NSMutableSet *databaseFileNames;
 #endif
 }
 
+-(dispatch_queue_t)getStorageQueue {
+    return storageQueue;
+}
+
 @end

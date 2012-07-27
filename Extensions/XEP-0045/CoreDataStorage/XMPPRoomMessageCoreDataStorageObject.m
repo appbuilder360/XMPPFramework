@@ -36,7 +36,9 @@
 @dynamic remoteTimestamp;
 @dynamic isFromMe;
 @dynamic fromMe;
-
+@dynamic messageId;
+@dynamic read;
+@dynamic isRead;
 @dynamic type;
 
 @dynamic streamBareJidStr;
@@ -145,6 +147,16 @@
 - (void)setIsFromMe:(BOOL)value
 {
 	self.fromMe = [NSNumber numberWithBool:value];
+}
+
+- (BOOL)isRead
+{
+	return [[self read] boolValue];
+}
+
+- (void)setIsRead:(BOOL)value
+{
+	self.read = [NSNumber numberWithBool:value];
 }
 
 @end

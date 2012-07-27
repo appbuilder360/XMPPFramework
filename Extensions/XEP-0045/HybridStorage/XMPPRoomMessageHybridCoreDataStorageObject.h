@@ -29,6 +29,9 @@
 @property (nonatomic, assign) BOOL isFromMe;
 @property (nonatomic, strong) NSNumber * fromMe;
 
+@property (nonatomic, assign) BOOL isRead;
+@property (nonatomic, strong) NSNumber * read;
+
 /**
  * The 'type' property can be used to inject event messages.
  * For example: "JohnDoe entered the room".

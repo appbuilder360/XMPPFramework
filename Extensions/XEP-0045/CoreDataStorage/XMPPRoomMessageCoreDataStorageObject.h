@@ -22,12 +22,16 @@
 
 @property (nonatomic, retain) NSString * nickname;
 @property (nonatomic, retain) NSString * body;
+@property (nonatomic, retain) NSString * messageId;  // Shadow (binary data, written to disk)
 
 @property (nonatomic, retain) NSDate * localTimestamp;
 @property (nonatomic, strong) NSDate * remoteTimestamp;
 
 @property (nonatomic, assign) BOOL isFromMe;
 @property (nonatomic, strong) NSNumber * fromMe;
+
+@property (nonatomic, assign) BOOL isRead;
+@property (nonatomic, strong) NSNumber * read;
 
 /**
  * The 'type' property can be used to inject event messages.
