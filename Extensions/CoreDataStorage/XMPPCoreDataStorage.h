@@ -123,4 +123,5 @@
 **/
 @property (strong, readonly) NSManagedObjectContext *mainThreadManagedObjectContext;
 
+-(void)removeAll;
 @end

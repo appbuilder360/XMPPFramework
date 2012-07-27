@@ -851,4 +851,18 @@ static NSMutableSet *databaseFileNames;
 	#endif
 }
 
+
+-(void)removeAll {
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+	
+	if (databaseFileName)
+        {
+		[[self class] unregisterDatabaseFileName:databaseFileName];
+        }
+#if NEEDS_DISPATCH_RETAIN_RELEASE
+	if (storageQueue)
+		dispatch_release(storageQueue);
+#endif
+}
+
 @end
