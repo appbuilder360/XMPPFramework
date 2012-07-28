@@ -1020,7 +1020,7 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 	
 	// It's possible to use our internal managedObjectContext only because we're not returning a NSManagedObject.
 	
-	__block int result = nil;
+	__block int result = 0;
 	
 	dispatch_block_t block = ^{ @autoreleasepool {
 		
