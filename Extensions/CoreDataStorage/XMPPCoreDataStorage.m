@@ -859,10 +859,11 @@ static NSMutableSet *databaseFileNames;
         {
 		[[self class] unregisterDatabaseFileName:databaseFileName];
         }
+    /*
 #if NEEDS_DISPATCH_RETAIN_RELEASE
 	if (storageQueue)
 		dispatch_release(storageQueue);
-#endif
+#endif*/
 }
 
 -(dispatch_queue_t)getStorageQueue {
