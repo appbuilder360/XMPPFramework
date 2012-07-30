@@ -34,6 +34,8 @@ enum XMPPRoomState
 
 @implementation XMPPRoom
 
+@synthesize roomName;
+
 - (id)init
 {
 	// This will cause a crash - it's designed to.
@@ -201,6 +203,9 @@ enum XMPPRoomState
 		return result;
 	}
 }
+
+
+
 
 - (BOOL)isJoined
 {
@@ -1011,6 +1016,7 @@ enum XMPPRoomState
 				state &= ~kXMPPRoomStateJoining;
 				state |=  kXMPPRoomStateJoined;
 				
+                
 				if ([xmppRoomStorage respondsToSelector:@selector(handleDidJoinRoom:withNickname:)])
 					[xmppRoomStorage handleDidJoinRoom:self withNickname:myNickname];
 				[multicastDelegate xmppRoomDidJoin:self];

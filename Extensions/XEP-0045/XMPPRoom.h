@@ -66,6 +66,10 @@ static NSString *const XMPPMUCOwnerNamespace = @"http://jabber.org/protocol/muc#
 
 @property (readonly) NSString *roomSubject;
 
+@property (strong, nonatomic) NSString * roomName;
+@property (readonly) NSString * description;
+
+
 @property (readonly) BOOL isJoined;
 
 #pragma mark Room Lifecycle

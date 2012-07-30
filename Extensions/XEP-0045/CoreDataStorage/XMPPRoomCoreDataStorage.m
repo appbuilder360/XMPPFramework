@@ -1070,6 +1070,64 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 	return result;
 }
 
+- (NSArray *)occupantsForRoomJID:(XMPPJID *)roomJID
+                          stream:(XMPPStream *)xmppStream
+                      inContext:(NSManagedObjectContext *)inMoc {
+    if (roomJID == nil) return 0;
+	
+	// It's possible to use our internal managedObjectContext only because we're not returning a NSManagedObject.
+	
+	__block NSArray * result = 0;
+	
+	dispatch_block_t block = ^{ @autoreleasepool {
+		
+		NSManagedObjectContext *moc = inMoc ? inMoc : [self managedObjectContext];
+		
+		NSEntityDescription *entity = [self occupantEntity:moc];
+		
+		NSPredicate *predicate;
+		if (xmppStream)
+		{
+			NSString *streamBareJidStr = [[self myJIDForXMPPStream:xmppStream] bare];
+			
+			NSString *predicateFormat = @"roomJIDStr == %@ AND streamBareJidStr == %@";
+			predicate = [NSPredicate predicateWithFormat:predicateFormat, roomJID, streamBareJidStr];
+		}
+		else
+		{
+			predicate = [NSPredicate predicateWithFormat:@"roomJIDStr == %@", roomJID];
+		}
+		
+		NSSortDescriptor *sortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"nickname" ascending:NO];
+		NSArray *sortDescriptors = [NSArray arrayWithObject:sortDescriptor];
+		
+		NSFetchRequest *fetchRequest = [[NSFetchRequest alloc] init];
+		[fetchRequest setEntity:entity];
+		[fetchRequest setPredicate:predicate];
+		[fetchRequest setSortDescriptors:sortDescriptors];
+		
+		NSError *error = nil;
+        NSArray * count = [moc executeFetchRequest:fetchRequest error:&error];
+        
+		if (error)
+		{
+			XMPPLogError(@"%@: %@ - fetchRequest error: %@", THIS_FILE, THIS_METHOD, error);
+		}
+		else
+		{
+			result = count;
+		}
+	}};
+	
+	if (inMoc == nil)
+		dispatch_sync(storageQueue, block);
+	else
+		block();
+	
+	return result;
+    
+    
+}
 
 - (XMPPRoomOccupantCoreDataStorageObject *)occupantForJID:(XMPPJID *)jid
                                                    stream:(XMPPStream *)xmppStream
