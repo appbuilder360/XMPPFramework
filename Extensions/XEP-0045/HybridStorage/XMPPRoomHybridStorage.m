@@ -599,6 +599,17 @@ static XMPPRoomHybridStorage *sharedInstance;
 	roomMessage.remoteTimestamp = remoteTimestamp;
 	roomMessage.isFromMe = isOutgoing;
 	roomMessage.streamBareJidStr = streamBareJidStr;
+    
+    
+    
+    Cloud9Calls * calls = [[Cloud9Calls alloc] init];
+    UserProfile * profile =  [calls getUserInformation];
+     NSString * messageFix =  [NSString stringWithFormat:@"%@ %@", [profile firstName], [profile lastName]];
+    
+    if([messageFix isEqualToString:roomMessage.nickname]) {
+        roomMessage.isFromMe = YES;
+    }
+    
 	
 	[moc insertObject:roomMessage];      // Hook if subclassing XMPPRoomMessageHybridCDSO (awakeFromInsert)
 	[self didInsertMessage:roomMessage]; // Hook if subclassing XMPPRoomHybridStorage

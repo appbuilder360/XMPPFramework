@@ -672,6 +672,16 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 	roomMessage.streamBareJidStr = streamBareJidStr;
     roomMessage.messageId = [message attributeStringValueForName:@"id"];
 
+    
+    Cloud9Calls * calls = [[Cloud9Calls alloc] init];
+    UserProfile * profile =  [calls getUserInformation];
+    NSString * messageFix =  [NSString stringWithFormat:@"%@ %@", [profile firstName], [profile lastName]];
+    
+    if([messageFix isEqualToString:roomMessage.nickname]) {
+        roomMessage.isFromMe = YES;
+    }
+
+    
 	[moc insertObject:roomMessage];      // Hook if subclassing XMPPRoomMessageCoreDataStorageObject (awakeFromInsert)
 	[self didInsertMessage:roomMessage]; // Hook if subclassing XMPPRoomCoreDataStorage
 }
