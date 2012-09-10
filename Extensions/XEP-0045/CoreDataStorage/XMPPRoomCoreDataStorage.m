@@ -515,8 +515,11 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 - (BOOL)existsMessage:(XMPPMessage *)message forRoom:(XMPPRoom *)room stream:(XMPPStream *)xmppStream
 {
 	NSDate *remoteTimestamp = [message delayedDeliveryDate];
-	
-	
+    
+    if (remoteTimestamp == nil) {
+        remoteTimestamp = [NSDate date];
+    }
+    
 	
 	// Does this message already exist in the database?
 	// How can we tell if two XMPPRoomMessages are the same?
@@ -545,26 +548,31 @@ static XMPPRoomCoreDataStorage *sharedInstance;
 	NSString *streamBareJidStr = [[self myJIDForXMPPStream:xmppStream] bare];
 	
 	XMPPJID *messageJID = [message from];
+    
+    if([messageJID isEqualToJID:room.myRoomJID]) {
+        return YES;
+    }
+    
 	NSString *messageBody = [[message elementForName:@"body"] stringValue];
 	
-	NSDate *minLocalTimestamp = [remoteTimestamp dateByAddingTimeInterval:-60];
-	NSDate *maxLocalTimestamp = [remoteTimestamp dateByAddingTimeInterval: 60];
-
+	//NSDate *minLocalTimestamp = [remoteTimestamp dateByAddingTimeInterval:-60];
+	//NSDate *maxLocalTimestamp = [remoteTimestamp dateByAddingTimeInterval: 60];
     
 	NSString *predicateFormat = @"    body == %@ "
-	                            @"AND jidStr == %@ "
-	                            @"AND streamBareJidStr == %@ "
-                                @"AND messageId == %@ "
-	                            @"AND "
-	                            @"("
-	                            @"     (remoteTimestamp == %@) "
-	                            @"  OR (remoteTimestamp == NIL && localTimestamp BETWEEN {%@, %@})"
-	                            @")";
-	
+    @"AND jidStr == %@ "
+    @"AND streamBareJidStr == %@ "
+    @"AND messageId == %@ "
+    @"AND "
+    @"("
+    @"     (remoteTimestamp == %@) "
+    @")";
     
 	NSPredicate *predicate = [NSPredicate predicateWithFormat:predicateFormat,
-	                             messageBody, messageJID, streamBareJidStr,[message attributeStringValueForName:@"id"],
-	                             remoteTimestamp, minLocalTimestamp, maxLocalTimestamp];
+                              messageBody, messageJID, streamBareJidStr,[message attributeStringValueForName:@"id"],
+                              remoteTimestamp];
+	
+    
+	
 	
 	NSFetchRequest *fetchRequest = [[NSFetchRequest alloc] init];
 	[fetchRequest setEntity:messageEntity];
